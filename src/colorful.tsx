@@ -2,7 +2,6 @@ import { h, Component, createRef, Fragment } from "preact";
 
 import "./style.css";
 
-
 interface ColorFulProps {
 	color: string;
 }
@@ -84,8 +83,6 @@ export default class ColorFul extends Component<ColorFulProps, ColorFulState> {
 		}
 
 		h = Math.round(h * 60);
-		// s = Math.round(s * 100);
-		// l = Math.round(l * 100);
 
 		v = s*Math.min(l, 1-l) + l;
 		s = v ? 2-2 * l / v : 0;
@@ -93,132 +90,72 @@ export default class ColorFul extends Component<ColorFulProps, ColorFulState> {
 		s = Math.round(s * 100);
 		v = Math.round(v * 100);
 
-		console.log(h, s, l, v);
 		return [h, s, v];
 	};
 
-	private hueUpdater = (e: MouseEvent | TouchEvent): void => {
+	private getOffset = (e: PointerEvent): {
+		offsetX: number;
+		offsetY: number;
+	} => {
+		let offsetX = 0, offsetY = 0;
+		if (e.currentTarget) {
+			const element = e.currentTarget as HTMLElement;
+			const rect = element.getBoundingClientRect();
+			offsetX = Math.min(element.offsetWidth, Math.max(0, e.clientX - rect.left));
+			offsetY = Math.min(element.offsetHeight, Math.max(0, e.clientY - rect.top));
+		}
+		return {
+			offsetX, offsetY,
+		};
+	};
+
+	private hueUpdater = (e: PointerEvent): void => {
 		e.preventDefault();
 
 		if ("buttons" in e && e.buttons !== 1) return;
 		if (e.currentTarget) {
-			const hueElement = (e.currentTarget as HTMLElement).parentElement as HTMLDivElement;
-			let offsetX = 0;
-			const rect = hueElement.getBoundingClientRect();
-			if ("changedTouches" in e) offsetX = e.changedTouches[0].clientX - rect.left;
-			else offsetX = e.clientX - rect.left;
-
-			offsetX = Math.min(
-				hueElement.offsetWidth,
-				Math.max(
-					0,
-					offsetX,
-				),
-			);
-
+			const hue = e.currentTarget as HTMLDivElement;
+			const offsetX = this.getOffset(e).offsetX;
 			this.setState({
-				hue: Math.round(360 * (offsetX / hueElement.offsetWidth)),
+				hue: Math.round(360 * (offsetX / hue.offsetWidth)),
 				cursorHue: offsetX - 12,
-			}, () => {
-				// const hue = this.hue.current;
-				// if (hue) {
-				// 	const radio = hue.width / hue.offsetWidth;
-				// 	const ctx = hue.getContext("2d") as CanvasRenderingContext2D;
-				// 	const color = ctx.getImageData(Math.round(offsetX * radio), 0, 1, 1).data;
-
-				// 	const r = `00${color[0].toString(16)}`.slice(-2);
-				// 	const b = `00${color[1].toString(16)}`.slice(-2);
-				// 	const g = `00${color[2].toString(16)}`.slice(-2);
-
-				// 	this.setState({ fillHue: `#${r}${b}${g}` }, () => this.saturationUpdater());
-				// }
 			});
 		}
 	}
 
-	private saturationUpdater = (e: MouseEvent | TouchEvent): void => {
+	private saturationUpdater = (e: PointerEvent): void => {
 		e.preventDefault();
 
 		if ("buttons" in e && e.buttons !== 1) return;
 		if (e.currentTarget) {
-			const hueElement = (e.currentTarget as HTMLElement).parentElement as HTMLDivElement;
-			let offsetX = 0, offsetY = 0;
-			const rect = hueElement.getBoundingClientRect();
-			if ("changedTouches" in e) {
-				offsetX = e.changedTouches[0].clientX - rect.left;
-				offsetY = e.changedTouches[0].clientY - rect.top;
-			} else {
-				offsetX = e.clientX - rect.left;
-				offsetY = e.clientY - rect.top;
-			}
-
-			offsetX = Math.min(hueElement.offsetWidth, Math.max(0, offsetX));
-			offsetY = Math.min(hueElement.offsetHeight, Math.max(0, offsetY));
-
+			const saturation = e.currentTarget as HTMLElement;
+			const { offsetX, offsetY } = this.getOffset(e);
 			this.setState({
 				cursorSaturation: {
 					x: offsetX - 12,
 					y: offsetY - 12,
 				},
-				saturation: Math.round(100 * (offsetX / hueElement.offsetWidth)),
-				value: 100 - Math.round(100 * (offsetY / hueElement.offsetHeight)),
-			}, () => {
-				console.log(this.state.saturation, this.state.value);
+				saturation: Math.round(100 * (offsetX / saturation.offsetWidth)),
+				value: 100 - Math.round(100 * (offsetY / saturation.offsetHeight)),
 			});
-
-			// const ctx = saturation.getContext("2d") as CanvasRenderingContext2D;
-			// ctx.clearRect(0, 0, saturation.width, saturation.height);
-
-			// const gradient = ctx.createLinearGradient(0, 0, 0, saturation.height);
-			// gradient.addColorStop(0, "#ffffff");
-			// gradient.addColorStop(1, "#000000");
-			// // gradient.addColorStop(.5, this.state.fillHue);
-			// // gradient.addColorStop(1, "#000000");
-			
-			// ctx.fillStyle = gradient;
-			// ctx.rect(0, 0, saturation.width, saturation.height);
-			// ctx.fill();
-			// const gradient2 = ctx.createLinearGradient(0, 0, saturation.width, 0);
-			// gradient2.addColorStop(0, "#ffffff");
-			// // gradient2.addColorStop(1, this.state.fillHue);
-			// // gradient.addColorStop(.5, this.state.fillHue);
-			// // gradient.addColorStop(1, "#000000");
-			
-			// ctx.fillStyle = gradient2;
-			
-			// ctx.fill();			
 		}
 	}
 
 	componentDidMount(): void {
-		const saturation = this.saturation.current;
-		if (saturation) {
-			saturation.addEventListener("mousemove", this.saturationUpdater, false);
-			this.setState((state) => ({
-				cursorSaturation: {
-					x: saturation.offsetWidth * (state.saturation * 0.01),
-					y: saturation.offsetHeight * (1 - state.value * 0.01),
-				},
-			}));
-		}
-		const hue = this.hue.current;
-		if (hue) {
-			hue.addEventListener("mousemove", this.hueUpdater, false);
-			// this.setState((state) => ({
-			// 	cursorHue: hue.offsetWidth * (360 - state.hue * 0.01),
-			// }));
-		}
-	}
-
-	componentWillUnmount(): void {
-		const saturation = this.saturation.current;
-		if (saturation) {
-			saturation.removeEventListener("mousemove", this.saturationUpdater);
-		}
-		const hue = this.hue.current;
-		if (hue) {
-			hue.removeEventListener("mousemove", this.hueUpdater);
-		}
+		// const saturation = this.saturation.current;
+		// if (saturation) {
+		// 	saturation.addEventListener("mousemove", this.saturationUpdater, false);
+		// 	this.setState((state) => ({
+		// 		cursorSaturation: {
+		// 			x: saturation.offsetWidth * (state.saturation * 0.01),
+		// 			y: saturation.offsetHeight * (1 - state.value * 0.01),
+		// 		},
+		// 	}));
+		// }
+		// const hue = this.hue.current;
+		// if (hue) {
+		// 	hue.addEventListener("mousemove", this.hueUpdater, false);
+		// }
 	}
 
 	render(props: Readonly<ColorFulProps>, state: Readonly<ColorFulState>): preact.ComponentChildren {
@@ -227,9 +164,21 @@ export default class ColorFul extends Component<ColorFulProps, ColorFulState> {
 
 		return <>
 			<div className="colorful">
-				<div ref={this.saturation} className="saturation" style={{
-					background: `linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0)), linear-gradient(to right, rgba(255,255,255,0), hsl(${state.hue},100%, 50%))`
-				}}>
+				<div
+					ref={this.saturation}
+					className="saturation"
+					style={{
+						background: `linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0)), linear-gradient(to right, rgba(255,255,255,0), hsl(${state.hue},100%, 50%))`
+					}}
+					onPointerEnter={(e): void => {
+						(e.currentTarget as HTMLDivElement).onpointermove = this.saturationUpdater.bind(this);
+						(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+					}}
+					onPointerLeave={(e): void => {
+						(e.currentTarget as HTMLDivElement).onpointermove = null;
+						(e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+					}}
+				>
 					<div
 						className="saturation_pointer"
 						style={{
@@ -245,7 +194,18 @@ export default class ColorFul extends Component<ColorFulProps, ColorFulState> {
 						/>
 					</div>
 				</div>
-				<div ref={this.hue} className="hue" onMouseDown={this.hueUpdater}>
+				<div
+					ref={this.hue}
+					className="hue"
+					onPointerEnter={(e): void => {
+						(e.currentTarget as HTMLDivElement).onpointermove = this.hueUpdater.bind(this);
+						(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+					}}
+					onPointerLeave={(e): void => {
+						(e.currentTarget as HTMLDivElement).onpointermove = null;
+						(e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+					}}
+				>
 					<div
 						className="hue_pointer"
 						style={{
@@ -260,11 +220,6 @@ export default class ColorFul extends Component<ColorFulProps, ColorFulState> {
 						/>
 					</div>
 				</div>
-			</div>
-			<div>
-				h: {state.hue}
-				s: {state.saturation}
-				v: {state.value}
 			</div>
 		</>;
 	}
