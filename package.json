@@ -1,7 +1,8 @@
 {
   "private": true,
   "name": "preact-colorful",
-  "version": "0.0.0",
+  "description": "A color selection tool implemented by Preact.",
+  "version": "0.0.1",
   "license": "MIT",
   "scripts": {
     "build": "preact build",
@@ -21,9 +22,9 @@
     ]
   },
   "dependencies": {
+    "gh-pages": "^4.0.0",
     "preact": "^10.3.1",
-    "preact-render-to-string": "^5.1.4",
-    "preact-router": "^3.2.1"
+    "preact-render-to-string": "^5.1.4"
   },
   "devDependencies": {
     "@types/enzyme": "^3.10.5",

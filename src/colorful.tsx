@@ -1,4 +1,5 @@
-import { h, Component, createRef, Fragment } from "preact";
+import { h, FunctionComponent } from "preact";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import "./style.css";
 
@@ -6,56 +7,32 @@ interface ColorFulProps {
 	color: string;
 }
 
-interface ColorFulState {
-	prevColor: string;
+const cursurSize = 12;
 
-	hue: number;
-	saturation: number;
-	value: number;
+const ColorFul: FunctionComponent<ColorFulProps> = ({
+	color,
+}) => {
+	const staturationRef = useRef<HTMLDivElement>(null);
+	const hueRef = useRef<HTMLDivElement>(null);
 
-	cursorSaturation: {
+	const [pointerId, setPointerId] = useState<number>(0);
+	// state
+	const [hue, setHue] = useState<number>(0);
+	const [saturation, setSaturation] = useState<number>(0);
+	const [value, setValue] = useState<number>(0);
+	const [cursorSaturation, setCursorSaturation] = useState<{
 		x: number;
 		y: number;
-	};
+	}>({
+		x: 0,
+		y: 0,
+	})
+	const [cursorHue, setCursorHue] = useState<number>(0);
 
-	cursorHue: number;
-}
-
-export default class ColorFul extends Component<ColorFulProps, ColorFulState> {
-	private saturation = createRef<HTMLDivElement>();
-	private hue = createRef<HTMLDivElement>();
-
-	constructor(props: Readonly<ColorFulProps>) {
-		super();
-
-		const hsv = this.rgbToHsv(props.color);
-		this.state = {
-			prevColor: props.color,
-
-			hue: hsv[0],
-			saturation: hsv[1],
-			value: hsv[2],
-
-			cursorSaturation: {
-				x: 0,
-				y: 0,
-			},
-			cursorHue: 0,
-		};
-	}
-
-	// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-	static getDerivedStateFromProps (nextProps: Readonly<ColorFulProps>, prevState: Readonly<ColorFulState>) {
-		if (nextProps.color !== prevState.prevColor) {
-			return {
-				prevColor: nextProps.color,
-			};
-		}
-
-		return null;
-	}
-
-	private rgbToHsv = (rgb: string): number[] => {
+	/**
+	 * `props.color` 가 업데이트 될때 갱신합니다.
+	 */
+	const rgbToHsv = useCallback((rgb: string) => {
 		const r = parseInt(rgb.slice(1, 3), 16) / 255;
 		const g = parseInt(rgb.slice(3, 5), 16) / 255;
 		const b = parseInt(rgb.slice(5, 7), 16) / 255;
@@ -91,140 +68,177 @@ export default class ColorFul extends Component<ColorFulProps, ColorFulState> {
 		v = Math.round(v * 100);
 
 		return [h, s, v];
-	};
+	}, []);
 
-	private getOffset = (e: PointerEvent): {
-		offsetX: number;
-		offsetY: number;
-	} => {
-		let offsetX = 0, offsetY = 0;
+	/**
+	 * 현재 포인터 위치에 대한 x, y정보를 가져옵니다. 해당함수는 한번만 업데이트 됩니다.
+	 */
+	const getPointerOffset = useCallback((e: PointerEvent) => {
+		let x = 0, y = 0;
 		if (e.currentTarget) {
 			const element = e.currentTarget as HTMLElement;
 			const rect = element.getBoundingClientRect();
-			offsetX = Math.min(element.offsetWidth, Math.max(0, e.clientX - rect.left));
-			offsetY = Math.min(element.offsetHeight, Math.max(0, e.clientY - rect.top));
+			x = Math.min(element.offsetWidth, Math.max(0, e.clientX - rect.left));
+			y = Math.min(element.offsetHeight, Math.max(0, e.clientY - rect.top));
 		}
 		return {
-			offsetX, offsetY,
+			x, y,
 		};
-	};
+	}, []);
 
-	private hueUpdater = (e: PointerEvent): void => {
+	const updateHue = useCallback((e: PointerEvent) => {
 		e.preventDefault();
 
 		if ("buttons" in e && e.buttons !== 1) return;
 		if (e.currentTarget) {
 			const hue = e.currentTarget as HTMLDivElement;
-			const offsetX = this.getOffset(e).offsetX;
-			this.setState({
-				hue: Math.round(360 * (offsetX / hue.offsetWidth)),
-				cursorHue: offsetX - 12,
-			});
+			const offsetX = getPointerOffset(e).x;
+
+			setHue(Math.round(360 * (offsetX / hue.offsetWidth))),
+			setCursorHue(offsetX);
 		}
-	}
+	}, [getPointerOffset]);
 
-	private saturationUpdater = (e: PointerEvent): void => {
+	const updateSaturation = useCallback((e: PointerEvent) => {
 		e.preventDefault();
-
 		if ("buttons" in e && e.buttons !== 1) return;
 		if (e.currentTarget) {
 			const saturation = e.currentTarget as HTMLElement;
-			const { offsetX, offsetY } = this.getOffset(e);
-			this.setState({
-				cursorSaturation: {
-					x: offsetX - 12,
-					y: offsetY - 12,
-				},
-				saturation: Math.round(100 * (offsetX / saturation.offsetWidth)),
-				value: 100 - Math.round(100 * (offsetY / saturation.offsetHeight)),
-			});
+			const { x, y } = getPointerOffset(e);
+
+			setCursorSaturation({ x, y });
+			setSaturation(Math.round(100 * (x / saturation.offsetWidth)));
+			setValue(100 - Math.round(100 * (y / saturation.offsetHeight)));
 		}
-	}
+	}, [getPointerOffset]);
 
-	componentDidMount(): void {
-		// const saturation = this.saturation.current;
-		// if (saturation) {
-		// 	saturation.addEventListener("mousemove", this.saturationUpdater, false);
-		// 	this.setState((state) => ({
-		// 		cursorSaturation: {
-		// 			x: saturation.offsetWidth * (state.saturation * 0.01),
-		// 			y: saturation.offsetHeight * (1 - state.value * 0.01),
-		// 		},
-		// 	}));
-		// }
-		// const hue = this.hue.current;
-		// if (hue) {
-		// 	hue.addEventListener("mousemove", this.hueUpdater, false);
-		// }
-	}
+	useEffect(() => {
+		const hsv = rgbToHsv(color);
 
-	render(props: Readonly<ColorFulProps>, state: Readonly<ColorFulState>): preact.ComponentChildren {
-		const l = (2 - state.saturation / 100) * state.value / 2;
-		const s = state.saturation * state.value / (l < 50 ? l * 2 : 200 - l * 2);
+		setHue(hsv[0]);
+		setSaturation(hsv[1]);
+		setValue(hsv[2]);
 
-		return <>
-			<div className="colorful">
+		if (staturationRef.current) {
+			const width = staturationRef.current.offsetWidth;
+			const height = staturationRef.current.offsetWidth;
+
+			setCursorSaturation({
+				x: width - (width * (hsv[0] / 360)),
+				y: height - (height * (hsv[1] / 100))
+			})
+		}
+
+		if (hueRef.current) {
+			const width = hueRef.current.offsetWidth;
+			setCursorHue(width - (width * (hsv[2] / 100)));
+		}
+	}, [color, rgbToHsv]);
+
+	const l = useMemo(() => ((2 - saturation / 100) * value / 2), [saturation, value]);
+	const s = useMemo(() => (saturation * value / (l < 50 ? l * 2 : 200 - l * 2)), [saturation, value, l]);
+
+
+	console.log(hue, saturation, value, l, s);
+
+	return <div className="colorful">
+			<div
+				className="saturation"
+				ref={staturationRef}
+				style={{
+					background: `linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0)), linear-gradient(to right, rgba(255,255,255,0), hsl(${hue},100%, 50%))`
+				}}
+				onPointerDown={(e): void => {
+					if (pointerId !== 0) return;
+
+					const staturation = e.currentTarget as HTMLDivElement;
+					if (staturation) {
+						setPointerId(e.pointerId);
+						updateSaturation(e);
+
+						staturation.setPointerCapture(e.pointerId);
+						staturation.onpointermove = updateSaturation.bind(this);
+					}
+				}}
+				onPointerUp={(e): void => {
+					if (e.pointerId !== pointerId) return;
+					const staturation = e.currentTarget as HTMLDivElement;
+					if (staturation) {
+						staturation.onpointermove = null;
+						staturation.releasePointerCapture(pointerId);
+						setPointerId(0);
+					}
+				}}
+			>
 				<div
-					ref={this.saturation}
-					className="saturation"
+					className="saturation_pointer"
 					style={{
-						background: `linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0)), linear-gradient(to right, rgba(255,255,255,0), hsl(${state.hue},100%, 50%))`
+						top: cursorSaturation.y - cursurSize,
+						left: cursorSaturation.x - cursurSize,
 					}}
-					onPointerEnter={(e): void => {
-						(e.currentTarget as HTMLDivElement).onpointermove = this.saturationUpdater.bind(this);
-						(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-					}}
-					onPointerLeave={(e): void => {
-						(e.currentTarget as HTMLDivElement).onpointermove = null;
-						(e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+					onPointerDown={(e): void => {
+						const eventClone = new PointerEvent(e.type, e);
+						if (staturationRef.current)
+							staturationRef.current.dispatchEvent(eventClone);
 					}}
 				>
 					<div
-						className="saturation_pointer"
+						className="saturation_pointer_fill"
 						style={{
-							top: state.cursorSaturation.y,
-							left: state.cursorSaturation.x,
+							background: `hsl(${hue},${s}%, ${l}%)`,
 						}}
-					>
-						<div
-							className="saturation_pointer_fill"
-							style={{
-								background: `hsl(${state.hue},${s}%, ${l}%)`,
-							}}
-						/>
-					</div>
-				</div>
-				<div
-					ref={this.hue}
-					className="hue"
-					onPointerEnter={(e): void => {
-						(e.currentTarget as HTMLDivElement).onpointermove = this.hueUpdater.bind(this);
-						(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-					}}
-					onPointerLeave={(e): void => {
-						(e.currentTarget as HTMLDivElement).onpointermove = null;
-						(e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
-					}}
-				>
-					<div
-						className="hue_pointer"
-						style={{
-							left: state.cursorHue,
-						}}
-					>
-						<div
-							className="hue_pointer_fill"
-							style={{
-								background: `hsl(${state.hue}, 100%, 50%)`,
-							}}
-						/>
-					</div>
+					/>
 				</div>
 			</div>
-		</>;
-	}
-}
+			<div
+				ref={hueRef}
+				className="hue"
+				onPointerDown={(e): void => {
+					if (pointerId !== 0) return;
+
+					const hue = e.currentTarget as HTMLDivElement;
+					if (hue) {
+						setPointerId(e.pointerId);
+						updateHue(e);
+
+						hue.setPointerCapture(e.pointerId);
+						hue.onpointermove = updateHue;
+					}
+				}}
+				onPointerUp={(e): void => {
+					if (e.pointerId !== pointerId) return;
+					const hue = e.currentTarget as HTMLDivElement;
+					if (hue) {
+						hue.onpointermove = null;
+						hue.releasePointerCapture(e.pointerId);
+						setPointerId(0);
+					}
+				}}
+			>
+				<div
+					className="hue_pointer"
+					style={{
+						left: cursorHue - cursurSize,
+					}}
+					onPointerDown={(e): void => {
+						const eventClone = new PointerEvent(e.type, e);
+						if (hueRef.current)
+							hueRef.current.dispatchEvent(eventClone);
+					}}
+				>
+					<div
+						className="hue_pointer_fill"
+						style={{
+							background: `hsl(${hue}, 100%, 50%)`,
+						}}
+					/>
+				</div>
+			</div>
+	</div>;
+};
 
 ColorFul.defaultProps = {
 	color: "#ff0000",
 };
+
+export default ColorFul;

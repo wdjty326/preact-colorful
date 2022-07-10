@@ -24,24 +24,6 @@
 	border-top-right-radius: 4px;
 }
 
-.saturation > .saturation_pointer {
-	position: absolute;
-	top: -2px;
-	height: 24px;
-	width: 24px;
-
-	border: 2px solid #ffffff;
-	border-radius: 50%;
-
-	overflow: hidden;
-	pointer-events: none;
-}
-
-.saturation > .saturation_pointer > .saturation_pointer_fill {
-	width: 100%;
-	height: 100%;
-}
-
 .hue {
 	position: relative;
 	width: 100%;
@@ -53,20 +35,26 @@
 	border-bottom-right-radius: 4px;
 }
 
+.saturation > .saturation_pointer,
 .hue > .hue_pointer {
 	position: absolute;
 	top: -2px;
 	height: 24px;
 	width: 24px;
 
-	border: 2px solid #ffffff;
+	border: 1px solid #ffffff;
 	border-radius: 50%;
 
 	overflow: hidden;
-	pointer-events: none;
+	z-index: 99;
+	/* pointer-events: none; */
 }
 
+.saturation > .saturation_pointer > .saturation_pointer_fill,
 .hue > .hue_pointer > .hue_pointer_fill {
-	width: 100%;
-	height: 100%;
+	position: relative;
+	top: -2px;
+	left: -2px;
+	width: 24px;
+	height: 24px;
 }
